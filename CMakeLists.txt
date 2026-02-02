@@ -20,13 +20,12 @@ FetchContent_Declare(
 
 FetchContent_Populate(wasi_sdk)
 FetchContent_Populate(llhttp_src)
-FetchContent_MakeAvailable(llhttp)
+FetchContent_Populate(llhttp)
 FetchContent_GetProperties(wasi_sdk)
 FetchContent_GetProperties(llhttp)
-# set(WASI 1)
+set(WASI 1)
 
-include(${wasi_sdk_SOURCE_DIR}/share/cmake/wasi-sdk.cmake)
-# set(CMAKE_SYSROOT ${wasi_sdk_SOURCE_DIR}/share/wasi-sysroot)
+set(CMAKE_TOOLCHAIN_FILE ${wasi_sdk_SOURCE_DIR}/share/cmake/wasi-sdk.cmake)
 
 project (llhttp-wasm-ts VERSION 0.1)
 
