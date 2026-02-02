@@ -1,31 +1,74 @@
 cmake_minimum_required(VERSION 3.25.0)
-
 include(FetchContent)
-
-#project name
-project (llhttp-wasm-ts VERSION 0.1)
+include(CMakePrintHelpers)
 
 FetchContent_Declare(
-  llhttp
-  URL "https://github.com/nodejs/llhttp/archive/refs/tags/release/v9.3.0.tar.gz"
-)
-
-set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
-set(BUILD_STATIC_LIBS ON CACHE INTERNAL "")
-FetchContent_MakeAvailable(llhttp)
-
-FetchContent_Declare(
-  wasi-sdk
+  wasi_sdk
   URL "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-29/wasi-sdk-29.0-x86_64-linux.tar.gz"
 )
+FetchContent_Declare(
+  llhttp
+  GIT_REPOSITORY "https://github.com/nodejs/llhttp.git"
+  GIT_TAG release/v9.3.0
+)
 
-FetchContent_MakeAvailable(wasi-sdk)
+FetchContent_Declare(
+  llhttp_src
+  GIT_REPOSITORY "https://github.com/nodejs/llhttp.git"
+  GIT_TAG v9.3.0
+)
 
-# Link with the llhttp_static target
-target_link_libraries(llhttp_static llhttp-wasm-ts)
+FetchContent_Populate(wasi_sdk)
+FetchContent_Populate(llhttp_src)
+FetchContent_MakeAvailable(llhttp)
+FetchContent_GetProperties(wasi_sdk)
+FetchContent_GetProperties(llhttp)
+# set(WASI 1)
+
+include(${wasi_sdk_SOURCE_DIR}/share/cmake/wasi-sdk.cmake)
+# set(CMAKE_SYSROOT ${wasi_sdk_SOURCE_DIR}/share/wasi-sysroot)
+
+project (llhttp-wasm-ts VERSION 0.1)
+
+set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
+set(BUILD_STATIC_LIBS OFF CACHE INTERNAL "")
+
+add_compile_options(
+  -fno-exceptions
+  -fvisibility=hidden
+)
+
+add_link_options(
+  -mexec-model=reactor
+  -Wl,-error-limit=0
+  -Wl,-O3
+  -Wl,--lto-O3
+  -Wl,--strip-all
+  -Wl,--allow-undefined
+  -Wl,--export-dynamic
+  -Wl,--export-table
+  -Wl,--export=malloc
+  -Wl,--export=free
+  -Wl,--no-entry
+)
+
+file(GLOB llhttp_c_files
+     ${llhttp_SOURCE_DIR}/src/*.c
+)
+
+# cmake_print_variables(llhttp_SOURCE_DIR llhttp_c_files)
+
+include_directories(${llhttp_SOURCE_DIR}/include)
+
+add_executable(
+  llhttp.wasm
+  ${llhttp_c_files}
+)
+
+# target_link_libraries(llhttp_wasm llhttp-wasm-ts)
 
 
-# add_library(llhttp)
+
 
 # target_sources(MyLibrary
 #   PRIVATE
