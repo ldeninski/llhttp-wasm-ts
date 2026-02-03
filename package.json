@@ -4,7 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "example:node": "node --import tsx src/examples/wasm_node.ts"
+    "example:node": "node --import tsx src/examples/wasm_node.ts",
+    "build:make": "make -C build",
+    "build:cmake": "cmake -S . -B build",
+    "build:all": "yarn build:cmake && yarn build:make",
+    "build:all:clean": "yarn build:dist:clean && yarn build:all",
+    "build:dist:clean": "rm -rf build"
   },
   "keywords": [],
   "author": "",
@@ -12,6 +17,7 @@
   "packageManager": "yarn@4.12.0",
   "devDependencies": {
     "@types/node": "^25.2.0",
+    "prettier": "^3.8.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }

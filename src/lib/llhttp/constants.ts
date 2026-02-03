@@ -328,7 +328,7 @@ export const METHODS_RTSP = [
 export const METHOD_MAP = METHODS;
 
 export const H_METHOD_MAP = Object.fromEntries(
-  Object.entries(METHODS).filter(([k]) => k.startsWith('H'))
+  Object.entries(METHODS).filter(([k]) => k.startsWith('H')),
 );
 
 export const STATUSES_HTTP = [
@@ -575,7 +575,7 @@ for (let i = 32; i <= 255; i++) {
 
 // ',' = \x44
 export const CONNECTION_TOKEN_CHARS: CharList = HEADER_CHARS.filter(
-  (c: string | number) => c !== 44
+  (c: string | number) => c !== 44,
 );
 
 export const QUOTED_STRING: CharList = ['\t', ' '];
