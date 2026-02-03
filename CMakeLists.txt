@@ -22,6 +22,7 @@ FetchContent_Populate(wasi_sdk)
 FetchContent_Populate(llhttp_src)
 FetchContent_Populate(llhttp)
 FetchContent_GetProperties(wasi_sdk)
+FetchContent_GetProperties(llhttp_src)
 FetchContent_GetProperties(llhttp)
 set(WASI 1)
 
@@ -31,6 +32,11 @@ project (llhttp-wasm-ts VERSION 0.1)
 
 set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
 set(BUILD_STATIC_LIBS OFF CACHE INTERNAL "")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build/wasm )
+configure_file(${llhttp_src_SOURCE_DIR}/examples/wasm.ts ${CMAKE_BINARY_DIR}/build/wasm.ts COPYONLY)
+configure_file(${llhttp_src_SOURCE_DIR}/src/llhttp/constants.ts ${CMAKE_BINARY_DIR}/build/wasm/constants.ts COPYONLY)
+configure_file(${llhttp_src_SOURCE_DIR}/src/llhttp/utils.ts ${CMAKE_BINARY_DIR}/build/wasm/utils.ts COPYONLY)
+add_custom_target(npm-target ALL COMMAND cd ${CMAKE_BINARY_DIR}/build && npm install tsx)
 
 add_compile_options(
   -fno-exceptions
