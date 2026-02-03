@@ -1,5 +1,7 @@
+# build artefacts
 build
 
+# cmake defaults
 CMakeLists.txt.user
 CMakeCache.txt
 CMakeFiles
@@ -12,3 +14,7 @@ compile_commands.json
 CTestTestfile.cmake
 _deps
 CMakeUserPresets.json
+
+# js world
+node_modules
+.yarn
