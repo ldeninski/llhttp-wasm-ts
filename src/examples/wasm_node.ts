@@ -5,11 +5,11 @@
  * - `npm run build-wasm`
  * - `npx ts-node examples/wasm.ts`
  */
-import { readFileSync } from "fs";
-import { resolve } from "path";
-import constants from "../lib/llhttp/constants";
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import * as constants from '../lib/llhttp/constants';
 
-const bin = readFileSync(resolve(__dirname, "../build/wasm/llhttp.wasm"));
+const bin = readFileSync(resolve(__dirname, '../../build/llhttp.wasm'));
 const mod = new WebAssembly.Module(bin);
 
 const REQUEST = constants.TYPE.REQUEST;
@@ -21,17 +21,16 @@ const kOnBody = 3;
 const kOnMessageComplete = 4;
 const kOnExecute = 5;
 
-const kPtr = Symbol("kPtr");
-const kUrl = Symbol("kUrl");
-const kStatusMessage = Symbol("kStatusMessage");
-const kHeadersFields = Symbol("kHeadersFields");
-const kHeadersValues = Symbol("kHeadersValues");
-const kBody = Symbol("kBody");
-const kReset = Symbol("kReset");
-const kCheckErr = Symbol("kCheckErr");
+const kPtr = Symbol('kPtr');
+const kUrl = Symbol('kUrl');
+const kStatusMessage = Symbol('kStatusMessage');
+const kHeadersFields = Symbol('kHeadersFields');
+const kHeadersValues = Symbol('kHeadersValues');
+const kBody = Symbol('kBody');
+const kReset = Symbol('kReset');
+const kCheckErr = Symbol('kCheckErr');
 
-const cstr = (ptr: number, len: number): string =>
-  Buffer.from(memory.buffer, ptr, len).toString();
+const cstr = (ptr: number, len: number): string => Buffer.from(memory.buffer, ptr, len).toString();
 
 const wasm_on_message_begin = (p: number) => {
   const i = instMap.get(p);
@@ -129,16 +128,12 @@ const malloc = inst.exports.malloc as CallableFunction;
 const execute = inst.exports.llhttp_execute as CallableFunction;
 const get_type = inst.exports.llhttp_get_type as CallableFunction;
 const get_upgrade = inst.exports.llhttp_get_upgrade as CallableFunction;
-const should_keep_alive = inst.exports
-  .llhttp_should_keep_alive as CallableFunction;
+const should_keep_alive = inst.exports.llhttp_should_keep_alive as CallableFunction;
 const get_method = inst.exports.llhttp_get_method as CallableFunction;
 const get_status_code = inst.exports.llhttp_get_status_code as CallableFunction;
-const get_version_minor = inst.exports
-  .llhttp_get_http_minor as CallableFunction;
-const get_version_major = inst.exports
-  .llhttp_get_http_major as CallableFunction;
-const get_error_reason = inst.exports
-  .llhttp_get_error_reason as CallableFunction;
+const get_version_minor = inst.exports.llhttp_get_http_minor as CallableFunction;
+const get_version_major = inst.exports.llhttp_get_http_major as CallableFunction;
+const get_error_reason = inst.exports.llhttp_get_error_reason as CallableFunction;
 const free = inst.exports.free as CallableFunction;
 const initialize = inst.exports._initialize as CallableFunction;
 
@@ -165,7 +160,7 @@ class HTTPParser {
     this[kPtr] = alloc(constants.TYPE[type]);
     instMap.set(this[kPtr], this);
 
-    this[kUrl] = "";
+    this[kUrl] = '';
     this[kStatusMessage] = null;
     this[kHeadersFields] = [];
     this[kHeadersValues] = [];
@@ -173,7 +168,7 @@ class HTTPParser {
   }
 
   [kReset]() {
-    this[kUrl] = "";
+    this[kUrl] = '';
     this[kStatusMessage] = null;
     this[kHeadersFields] = [];
     this[kHeadersValues] = [];
@@ -242,14 +237,7 @@ class HTTPParser {
 
   p.execute(
     Buffer.from(
-      [
-        "POST /owo HTTP/1.1",
-        "X: Y",
-        "Content-Length: 9",
-        "",
-        "uh, meow?",
-        "",
-      ].join("\r\n")
+      ['POST /owo HTTP/1.1', 'X: Y', 'Content-Length: 9', '', 'uh, meow?', ''].join('\r\n')
     )
   );
 
@@ -262,11 +250,7 @@ class HTTPParser {
   const p = new HTTPParser(HTTPParser.RESPONSE);
 
   p.execute(
-    Buffer.from(
-      ["HTTP/1.1 200 OK", "X: Y", "Content-Length: 9", "", "uh, meow?"].join(
-        "\r\n"
-      )
-    )
+    Buffer.from(['HTTP/1.1 200 OK', 'X: Y', 'Content-Length: 9', '', 'uh, meow?'].join('\r\n'))
   );
 
   console.log(p);
