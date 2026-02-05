@@ -5,11 +5,12 @@
  * - `npm run build-wasm`
  * - `npx ts-node examples/wasm.ts`
  */
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import path from 'tjs:path';
 import * as constants from '../lib/llhttp/constants';
 
-const bin = readFileSync(resolve(__dirname, '../../build/llhttp.wasm'));
+const bin = (await tjs.readFile(
+  path.resolve(tjs.cwd, 'build/llhttp.wasm'),
+)) as Uint8Array<ArrayBuffer>;
 const mod = new WebAssembly.Module(bin);
 
 const REQUEST = constants.TYPE.REQUEST;
@@ -136,8 +137,6 @@ const get_version_major = inst.exports.llhttp_get_http_major as CallableFunction
 const get_error_reason = inst.exports.llhttp_get_error_reason as CallableFunction;
 const free = inst.exports.free as CallableFunction;
 const initialize = inst.exports._initialize as CallableFunction;
-
-console.log(inst.exports);
 
 initialize(); // wasi reactor
 

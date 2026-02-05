@@ -37,6 +37,7 @@ set(BUILD_STATIC_LIBS OFF CACHE INTERNAL "")
 add_compile_options(
   -fno-exceptions
   -fvisibility=hidden
+  -U__wasm__
 )
 
 add_link_options(
@@ -57,6 +58,12 @@ file(GLOB llhttp_c_files
      ${llhttp_SOURCE_DIR}/src/*.c
 )
 
+list(
+  APPEND
+  llhttp_c_files
+  src/c/llhttp-generator.c
+)
+
 # cmake_print_variables(llhttp_SOURCE_DIR llhttp_c_files)
 
 include_directories(${llhttp_SOURCE_DIR}/include)
@@ -65,6 +72,12 @@ add_executable(
   llhttp.wasm
   ${llhttp_c_files}
 )
+
+add_executable(
+  llhttp-test.wasm
+  src/c/test.c
+)
+
 
 # target_link_libraries(llhttp_wasm llhttp-wasm-ts)
 

@@ -234,6 +234,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@txikijs/types@npm:^24.12.0":
+  version: 24.12.0
+  resolution: "@txikijs/types@npm:24.12.0"
+  checksum: 10c0/cf0642cf0215b3283876e49934add3725ca277008624f3f133b930d453c68aea7d102f3b1183c3283388bed3d1c9dd9169af39eed3cd55797babe953c4cd5bf7
+  languageName: node
+  linkType: hard
+
 "@types/node@npm:^25.2.0":
   version: 25.2.0
   resolution: "@types/node@npm:25.2.0"
@@ -542,6 +549,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "llhttp-wasm-ts@workspace:."
   dependencies:
+    "@txikijs/types": "npm:^24.12.0"
     "@types/node": "npm:^25.2.0"
     prettier: "npm:^3.8.1"
     tsx: "npm:^4.21.0"

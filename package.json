@@ -5,17 +5,22 @@
   "main": "index.js",
   "scripts": {
     "example:node": "node --import tsx src/examples/wasm_node.ts",
+    "build:make:clean": "make -C build clean && make -C build",
     "build:make": "make -C build",
+    "build:make:q": "make -C build >/dev/null",
     "build:cmake": "cmake -S . -B build",
     "build:all": "yarn build:cmake && yarn build:make",
     "build:all:clean": "yarn build:dist:clean && yarn build:all",
-    "build:dist:clean": "rm -rf build"
+    "build:dist:clean": "rm -rf build",
+    "build:ts": "esbuild --bundle --outdir=build --external:tjs:\\* --target=es2023 --platform=neutral --format=esm --main-fields=main,module $0",
+    "tjs:run": "yarn build:ts $0 && tjs run ./build/$(basename -s .ts $0).js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "packageManager": "yarn@4.12.0",
   "devDependencies": {
+    "@txikijs/types": "^24.12.0",
     "@types/node": "^25.2.0",
     "prettier": "^3.8.1",
     "tsx": "^4.21.0",
