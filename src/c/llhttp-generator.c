@@ -35,11 +35,13 @@ const uint32_t CB_TYPE_on_version = 25;
 
 typedef struct {
 	uint32_t 						last_cb;
-	const char *				last_pos;
+	size_t      				last_pos;
 	size_t							last_size;
 	int									last_error;
 	const char *				buffer;
+	const char *				subBuffer;
 	size_t							size;
+	size_t							subSize;
 } hg_state_t;
 
 
@@ -49,11 +51,13 @@ typedef struct {
 		hg_state_t 	state;
 		struct {
 			uint32_t 						last_cb;
-			const char *				last_pos;
+			size_t				      last_pos;
 			size_t							last_size;
 			int									last_error;
 			const char *				buffer;
+			const char *				subBuffer;
 			size_t							size;
+			size_t							subSize;
 		};
 	};
 } llhttp_ext;
@@ -66,21 +70,24 @@ WASM_EXPORT uint16_t hg_get_prt_size(void) {
 WASM_EXPORT uint32_t hg_get_last_cb(llhttp_ext * parser) {
 	return parser->last_cb;
 }
-WASM_EXPORT const char * hg_get_last_pos(llhttp_ext * parser) {
+WASM_EXPORT size_t hg_get_last_pos(llhttp_ext * parser) {
 	return parser->last_pos;
 }
 WASM_EXPORT size_t hg_get_last_size(llhttp_ext * parser) {
 	return parser->last_size;
 }
 WASM_EXPORT int hg_get_last_error(llhttp_ext * parser) {
-	return parser->last_cb;
+	return parser->last_error;
+}
+
+WASM_EXPORT void hg_print_error_reason(llhttp_t * parser) {
+	printf("Error Resona: %s\n", llhttp_get_error_reason(parser));
+	fflush(stdout);
 }
 
 #define CB_WRAP(CB) 																	\
 static inline int cb_##CB(llhttp_t* _parser) { 				\
 	llhttp_ext* parser = (llhttp_ext*)_parser;					\
-	printf("%s\n", #CB); \
-	fflush(stdout); \
 	parser->last_cb = CB_TYPE_##CB;											\
 	return HPE_PAUSED;																	\
 };
@@ -88,10 +95,8 @@ static inline int cb_##CB(llhttp_t* _parser) { 				\
 #define CB_DATA_WRAP(CB) 														\
 static inline int cb_##CB(llhttp_t* _parser, const char *pos, size_t size) { 		\
 	llhttp_ext* parser = (llhttp_ext*)_parser;					\
-	printf("%s\n", #CB); \
-	fflush(stdout); \
 	parser->last_cb = CB_TYPE_##CB;											\
-	parser->last_pos = pos;															\
+	parser->last_pos = pos - parser->buffer;				  	\
 	parser->last_size = size;														\
 	return HPE_PAUSED;																	\
 };
@@ -169,29 +174,31 @@ WASM_EXPORT void hg_destroy(llhttp_t* parser) {
 	free(parser);
 }
 
-WASM_EXPORT hg_state_t * hg_begin(llhttp_ext* parser, char * data, size_t size) {
+WASM_EXPORT llhttp_errno_t hg_begin(llhttp_ext* parser, char * data, size_t size) {
 	printf("hg_begin(%d, %d, %d) \n", parser, data, size);
 	fflush(stdout);
 	parser->buffer = data;
 	parser->size = size;
+	parser->subBuffer = data;
+	parser->subSize = size;
 
-	int last_error = llhttp_execute((llhttp_t *)parser, data, size);
-	if (last_error != HPE_PAUSED) {
-		printf("Error! (%d) \n", last_error);
-		fflush(stdout);
-		parser->last_error = last_error;
-		return &parser->state;
-	}
+	llhttp_errno_t last_error = llhttp_execute((llhttp_t *)parser, data, size);
+	parser->last_error = last_error;
 	
-	parser->last_error = HPE_OK;
-	return &parser->state;
+	return last_error;
 }
 
-WASM_EXPORT hg_state_t * hg_next(llhttp_ext* parser) {
+WASM_EXPORT llhttp_errno_t hg_next(llhttp_ext* parser) {
 	llhttp_resume((llhttp_t *)parser);
 	const char * error_pos = llhttp_get_error_pos((llhttp_t *)parser);
 	
-	return hg_begin(parser, error_pos, parser->size - (error_pos - parser->buffer));
+	parser->subSize = parser->subSize - (error_pos - parser->subBuffer);
+	parser->subBuffer = error_pos;
+	
+	llhttp_errno_t last_error = llhttp_execute(parser, parser->subBuffer, parser->subSize);
+	parser->last_error = last_error;
+	
+	return last_error;
 }
 
 WASM_EXPORT char* hg_malloc(size_t size) {

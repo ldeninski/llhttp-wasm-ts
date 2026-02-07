@@ -51,11 +51,12 @@ TE: trailers
 
   let state = hgGetState(parser, api);
   console.log(state);
-  console.log('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+  api.hg_print_error_reason(parser);
 
-  while (state.last_error === 21 || state.last_error === 0 || state.last_error === 8) {
+  while (state.last_error === 21 && state.last_cb !== CB_TYPE.CB_TYPE_on_message_complete) {
     api.hg_next(parser);
     state = hgGetState(parser, api);
+    api.hg_print_error_reason(parser);
     console.log(state);
   }
 

@@ -1,3 +1,4 @@
+import type { parse } from 'tjs:uuid';
 import type { TYPE } from './llhttp/constants';
 
 export enum CB_TYPE {
@@ -49,6 +50,7 @@ export interface HGAPI {
   hg_get_last_error: (state: llhttp_ext) => number;
   hg_create: (type: TYPE) => llhttp_ext;
   hg_destroy: (parser: llhttp_t) => void;
+  hg_print_error_reason: (parser: llhttp_t) => void;
   hg_begin: (parser: llhttp_ext, data: bufferPtr, size: number) => hg_state_t;
   hg_next: (parser: llhttp_ext) => llhttp_ext;
   hg_malloc: (size: number) => bufferPtr;
