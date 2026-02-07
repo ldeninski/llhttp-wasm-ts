@@ -63,22 +63,24 @@ WASM_EXPORT uint16_t hg_get_prt_size(void) {
 	return sizeof(size_t);
 };
 
-WASM_EXPORT uint32_t hg_get_last_cb(hg_state_t * state) {
-	return state->last_cb;
+WASM_EXPORT uint32_t hg_get_last_cb(llhttp_ext * parser) {
+	return parser->last_cb;
 }
-WASM_EXPORT const char * hg_get_last_pos(hg_state_t * state) {
-	return state->last_pos;
+WASM_EXPORT const char * hg_get_last_pos(llhttp_ext * parser) {
+	return parser->last_pos;
 }
-WASM_EXPORT size_t hg_get_last_size(hg_state_t * state) {
-	return state->last_size;
+WASM_EXPORT size_t hg_get_last_size(llhttp_ext * parser) {
+	return parser->last_size;
 }
-WASM_EXPORT int hg_get_last_error(hg_state_t * state) {
-	return state->last_cb;
+WASM_EXPORT int hg_get_last_error(llhttp_ext * parser) {
+	return parser->last_cb;
 }
 
 #define CB_WRAP(CB) 																	\
-static inline int cb_##CB(llhttp_t* _parser) { 		\
+static inline int cb_##CB(llhttp_t* _parser) { 				\
 	llhttp_ext* parser = (llhttp_ext*)_parser;					\
+	printf("%s\n", #CB); \
+	fflush(stdout); \
 	parser->last_cb = CB_TYPE_##CB;											\
 	return HPE_PAUSED;																	\
 };
@@ -86,6 +88,8 @@ static inline int cb_##CB(llhttp_t* _parser) { 		\
 #define CB_DATA_WRAP(CB) 														\
 static inline int cb_##CB(llhttp_t* _parser, const char *pos, size_t size) { 		\
 	llhttp_ext* parser = (llhttp_ext*)_parser;					\
+	printf("%s\n", #CB); \
+	fflush(stdout); \
 	parser->last_cb = CB_TYPE_##CB;											\
 	parser->last_pos = pos;															\
 	parser->last_size = size;														\
@@ -119,8 +123,6 @@ CB_DATA_WRAP(on_status);
 CB_DATA_WRAP(on_url);
 CB_DATA_WRAP(on_version);
 
-WASM_EXPORT hg_state_t hg_begin(llhttp_ext* parser, const char* data, size_t size);
-
 void attach_cb(llhttp_settings_t *settings) {
 	settings->on_chunk_complete = cb_on_chunk_complete;
 	settings->on_chunk_extension_name_complete = cb_on_chunk_extension_name_complete;
@@ -151,10 +153,14 @@ void attach_cb(llhttp_settings_t *settings) {
 }
 
 WASM_EXPORT llhttp_ext* hg_create(llhttp_type_t type) {
+	printf("hg_create(%d) \n", type);
+	fflush(stdout);
 	llhttp_t* parser = malloc(sizeof(llhttp_ext));
 	llhttp_settings_t* settings = malloc(sizeof(llhttp_settings_t));
 	attach_cb(settings);
   llhttp_init(parser, type, settings);
+	llhttp_set_lenient_optional_cr_before_lf(parser, 1);
+	llhttp_set_lenient_optional_lf_after_cr(parser, 1);
   return (llhttp_ext*)parser;
 }
 
@@ -163,23 +169,100 @@ WASM_EXPORT void hg_destroy(llhttp_t* parser) {
 	free(parser);
 }
 
-WASM_EXPORT hg_state_t hg_next(llhttp_ext* parser) {
+WASM_EXPORT hg_state_t * hg_begin(llhttp_ext* parser, char * data, size_t size) {
+	printf("hg_begin(%d, %d, %d) \n", parser, data, size);
+	fflush(stdout);
+	parser->buffer = data;
+	parser->size = size;
+
+	int last_error = llhttp_execute((llhttp_t *)parser, data, size);
+	if (last_error != HPE_PAUSED) {
+		printf("Error! (%d) \n", last_error);
+		fflush(stdout);
+		parser->last_error = last_error;
+		return &parser->state;
+	}
+	
+	parser->last_error = HPE_OK;
+	return &parser->state;
+}
+
+WASM_EXPORT hg_state_t * hg_next(llhttp_ext* parser) {
 	llhttp_resume((llhttp_t *)parser);
 	const char * error_pos = llhttp_get_error_pos((llhttp_t *)parser);
 	
 	return hg_begin(parser, error_pos, parser->size - (error_pos - parser->buffer));
 }
 
-WASM_EXPORT hg_state_t hg_begin(llhttp_ext* parser, const char* data, size_t size) {
-	parser->buffer = data;
-	parser->size = size;
+WASM_EXPORT char* hg_malloc(size_t size) {
+	// if (size % 4 != 0) {
+	// 	printf("hg_malloc must be 4 bytes aligned - cannot allocate %d bytes", size);
+	// 	fflush(stdout);
+	// 	return NULL;
+	// }
 
-	int last_error = llhttp_execute((llhttp_t *)parser, data, size);
-	if (last_error != HPE_PAUSED) {
-		parser->last_error = last_error;
-		return parser->state;
+	char* buffer = malloc(size);
+	memset(buffer, 0, size);
+
+	if (!buffer) return NULL;
+
+	return buffer;
+}
+
+WASM_EXPORT void hg_free(char* buffer) {
+	if (buffer) {
+		free(buffer);
 	}
-	
-	parser->last_error = HPE_OK;
-	return parser->state;
+}
+
+WASM_EXPORT void hg_write(char * pos, size_t size, 
+	uint32_t	w01,
+	uint32_t	w02,
+	uint32_t	w03,
+	uint32_t	w04,
+	uint32_t	w05,
+	uint32_t	w06,
+	uint32_t	w07,
+	uint32_t	w08,
+	uint32_t	w09,
+	uint32_t	w10,
+	uint32_t	w11,
+	uint32_t	w12,
+	uint32_t	w13,
+	uint32_t	w14,
+	uint32_t	w15,
+	uint32_t	w16
+) {
+	if (size > 16 * 4) {
+		printf("hg_write cannot write more than %d bytes at a time called with %d bytes", 16*4, size);
+		fflush(stdout);
+		return;
+	}
+	// printf("in hg_write(%d, %d)\n", pos, size);
+	fflush(stdout);
+	uint32_t localBuf[] = {
+		w01,
+		w02,
+		w03,
+		w04,
+		w05,
+		w06,
+		w07,
+		w08,
+		w09,
+		w10,
+		w11,
+		w12,
+		w13,
+		w14,
+		w15,
+		w16
+	};
+
+	memcpy(pos, &localBuf, size * 4);
+}
+
+WASM_EXPORT void hg_dump(char * buffer) {
+	printf("\"%s\"\n", buffer);
+	fflush(stdout);
 }
