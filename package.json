@@ -20,7 +20,7 @@
   "license": "ISC",
   "packageManager": "yarn@4.12.0",
   "devDependencies": {
-    "@txikijs/types": "^24.12.0",
+    "@txikijs/types": "^26.2.0",
     "@types/node": "^25.2.0",
     "esbuild": "^0.27.3",
     "prettier": "^3.8.1",

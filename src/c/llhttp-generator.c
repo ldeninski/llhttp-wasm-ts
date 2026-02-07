@@ -5,6 +5,19 @@
 
 #define WASM_EXPORT __attribute__((visibility("default")))
 
+// #define DEBUG
+
+#ifdef DEBUG
+#define DBG_LOG(fmt, ...)                  \
+	do                                     \
+	{                                      \
+		fprintf(stdout, fmt, __VA_ARGS__); \
+		fflush(stdout);                    \
+	} while (0)
+#else
+#define DBG_LOG(...)
+#endif
+
 // no enum here -> we need to know the exact size of this field
 const uint32_t CB_TYPE_on_chunk_complete = 1;
 const uint32_t CB_TYPE_on_chunk_extension_name_complete = 2;
@@ -21,6 +34,9 @@ const uint32_t CB_TYPE_on_reset = 12;
 const uint32_t CB_TYPE_on_status_complete = 13;
 const uint32_t CB_TYPE_on_url_complete = 14;
 const uint32_t CB_TYPE_on_version_complete = 15;
+
+const uint32_t CB_COMPLETE_MAX = CB_TYPE_on_version_complete;
+
 const uint32_t CB_TYPE_on_body = 16;
 const uint32_t CB_TYPE_on_chunk_extension_name = 17;
 const uint32_t CB_TYPE_on_chunk_extension_value = 18;
@@ -32,74 +48,82 @@ const uint32_t CB_TYPE_on_status = 23;
 const uint32_t CB_TYPE_on_url = 24;
 const uint32_t CB_TYPE_on_version = 25;
 
-
-typedef struct {
-	uint32_t 						last_cb;
-	size_t      				last_pos;
-	size_t							last_size;
-	int									last_error;
-	const char *				buffer;
-	const char *				subBuffer;
-	size_t							size;
-	size_t							subSize;
-} hg_state_t;
-
-
 typedef struct {
 	llhttp_t _llhttp_int;
-	union {
-		hg_state_t 	state;
-		struct {
-			uint32_t 						last_cb;
-			size_t				      last_pos;
-			size_t							last_size;
-			int									last_error;
-			const char *				buffer;
-			const char *				subBuffer;
-			size_t							size;
-			size_t							subSize;
-		};
+
+	struct {
+		uint32_t serial;
+
+		uint32_t last_cb;
+		size_t last_pos;
+		size_t last_size;
+
+		size_t prev_pos;
+		size_t prev_size;
+		uint32_t prev_cb;
+
+		int last_error;
+		const char* buffer;
+		const char* subBuffer;
+		size_t size;
+		size_t subSize;
 	};
 } llhttp_ext;
-
 
 WASM_EXPORT uint16_t hg_get_prt_size(void) {
 	return sizeof(size_t);
 };
 
-WASM_EXPORT uint32_t hg_get_last_cb(llhttp_ext * parser) {
+WASM_EXPORT uint32_t hg_get_serial(llhttp_ext* parser) {
+	return parser->serial;
+}
+WASM_EXPORT uint32_t hg_get_last_cb(llhttp_ext* parser) {
 	return parser->last_cb;
 }
-WASM_EXPORT size_t hg_get_last_pos(llhttp_ext * parser) {
+WASM_EXPORT size_t hg_get_last_pos(llhttp_ext* parser) {
 	return parser->last_pos;
 }
-WASM_EXPORT size_t hg_get_last_size(llhttp_ext * parser) {
+WASM_EXPORT size_t hg_get_last_size(llhttp_ext* parser) {
 	return parser->last_size;
 }
-WASM_EXPORT int hg_get_last_error(llhttp_ext * parser) {
+WASM_EXPORT int hg_get_last_error(llhttp_ext* parser) {
 	return parser->last_error;
 }
 
-WASM_EXPORT void hg_print_error_reason(llhttp_t * parser) {
+WASM_EXPORT void hg_print_error_reason(llhttp_t* parser) {
 	printf("Error Resona: %s\n", llhttp_get_error_reason(parser));
 	fflush(stdout);
 }
 
-#define CB_WRAP(CB) 																	\
-static inline int cb_##CB(llhttp_t* _parser) { 				\
-	llhttp_ext* parser = (llhttp_ext*)_parser;					\
-	parser->last_cb = CB_TYPE_##CB;											\
-	return HPE_PAUSED;																	\
-};
+#define CB_WRAP(CB) \
+	static inline int cb_##CB(llhttp_t *_parser) { \
+		llhttp_ext *parser = (llhttp_ext *)_parser;  \
+		parser->last_cb = CB_TYPE_##CB;              \
+		parser->prev_cb = CB_TYPE_##CB;              \
+		parser->serial++;														 \
+		DBG_LOG("%s\ts: %d,e: %d, pos: %d, size: %d \n", #CB, parser->serial, parser->last_error, parser->last_pos, parser->last_size);	\
+		return HPE_PAUSED;                           \
+	};
 
-#define CB_DATA_WRAP(CB) 														\
-static inline int cb_##CB(llhttp_t* _parser, const char *pos, size_t size) { 		\
-	llhttp_ext* parser = (llhttp_ext*)_parser;					\
-	parser->last_cb = CB_TYPE_##CB;											\
-	parser->last_pos = pos - parser->buffer;				  	\
-	parser->last_size = size;														\
-	return HPE_PAUSED;																	\
-};
+#define CB_DATA_WRAP(CB) \
+	static inline int cb_##CB(llhttp_t *_parser, const char *pos, size_t size) { \
+		llhttp_ext *parser = (llhttp_ext *)_parser;                                \
+		DBG_LOG(">%s\t\t\ts: %d,e: %d, pos: %d, size: %d \n", #CB, parser->serial, parser->last_error, parser->last_pos, parser->last_size);	\
+		parser->last_cb = CB_TYPE_##CB;                                            \
+		parser->last_pos = pos - parser->buffer;                                   \
+		parser->last_size = size;                                                  \
+		if ( \
+			parser->serial == 0 || \
+			parser->last_cb != parser->prev_cb || \
+			parser->last_pos != parser->prev_pos || \
+			parser->last_size != parser->prev_size \
+		) parser->serial++; \
+		parser->prev_cb = parser->last_cb; \
+		parser->prev_pos = parser->last_pos; \
+		parser->prev_size = parser->last_size; \
+		DBG_LOG("<%s\t\t\ts: %d,e: %d, pos: %d, size: %d \n", #CB, parser->serial, parser->last_error, parser->last_pos, parser->last_size);	\
+		return HPE_PAUSED;                                                         \
+	};
 
 CB_WRAP(on_chunk_complete);
 CB_WRAP(on_chunk_extension_name_complete);
@@ -128,7 +152,7 @@ CB_DATA_WRAP(on_status);
 CB_DATA_WRAP(on_url);
 CB_DATA_WRAP(on_version);
 
-void attach_cb(llhttp_settings_t *settings) {
+void attach_cb(llhttp_settings_t* settings) {
 	settings->on_chunk_complete = cb_on_chunk_complete;
 	settings->on_chunk_extension_name_complete = cb_on_chunk_extension_name_complete;
 	settings->on_chunk_extension_value_complete = cb_on_chunk_extension_value_complete;
@@ -158,15 +182,14 @@ void attach_cb(llhttp_settings_t *settings) {
 }
 
 WASM_EXPORT llhttp_ext* hg_create(llhttp_type_t type) {
-	printf("hg_create(%d) \n", type);
-	fflush(stdout);
+	DBG_LOG("hg_create(%d) \n", type);
 	llhttp_t* parser = malloc(sizeof(llhttp_ext));
 	llhttp_settings_t* settings = malloc(sizeof(llhttp_settings_t));
 	attach_cb(settings);
-  llhttp_init(parser, type, settings);
+	llhttp_init(parser, type, settings);
 	llhttp_set_lenient_optional_cr_before_lf(parser, 1);
 	llhttp_set_lenient_optional_lf_after_cr(parser, 1);
-  return (llhttp_ext*)parser;
+	return (llhttp_ext*)parser;
 }
 
 WASM_EXPORT void hg_destroy(llhttp_t* parser) {
@@ -174,44 +197,38 @@ WASM_EXPORT void hg_destroy(llhttp_t* parser) {
 	free(parser);
 }
 
-WASM_EXPORT llhttp_errno_t hg_begin(llhttp_ext* parser, char * data, size_t size) {
-	printf("hg_begin(%d, %d, %d) \n", parser, data, size);
-	fflush(stdout);
+WASM_EXPORT llhttp_errno_t hg_begin(llhttp_ext* parser, char* data, size_t size) {
+	DBG_LOG("hg_begin(%d, %d, %d) \n", parser, data, size);
 	parser->buffer = data;
 	parser->size = size;
 	parser->subBuffer = data;
 	parser->subSize = size;
 
-	llhttp_errno_t last_error = llhttp_execute((llhttp_t *)parser, data, size);
+	llhttp_errno_t last_error = llhttp_execute((llhttp_t*)parser, data, size);
 	parser->last_error = last_error;
-	
+
 	return last_error;
 }
 
 WASM_EXPORT llhttp_errno_t hg_next(llhttp_ext* parser) {
-	llhttp_resume((llhttp_t *)parser);
-	const char * error_pos = llhttp_get_error_pos((llhttp_t *)parser);
-	
+	llhttp_resume((llhttp_t*)parser);
+	const char* error_pos = llhttp_get_error_pos((llhttp_t*)parser);
+
 	parser->subSize = parser->subSize - (error_pos - parser->subBuffer);
 	parser->subBuffer = error_pos;
-	
+
 	llhttp_errno_t last_error = llhttp_execute(parser, parser->subBuffer, parser->subSize);
 	parser->last_error = last_error;
-	
+
 	return last_error;
 }
 
 WASM_EXPORT char* hg_malloc(size_t size) {
-	// if (size % 4 != 0) {
-	// 	printf("hg_malloc must be 4 bytes aligned - cannot allocate %d bytes", size);
-	// 	fflush(stdout);
-	// 	return NULL;
-	// }
-
 	char* buffer = malloc(size);
 	memset(buffer, 0, size);
 
-	if (!buffer) return NULL;
+	if (!buffer)
+		return NULL;
 
 	return buffer;
 }
@@ -222,31 +239,27 @@ WASM_EXPORT void hg_free(char* buffer) {
 	}
 }
 
-WASM_EXPORT void hg_write(char * pos, size_t size, 
-	uint32_t	w01,
-	uint32_t	w02,
-	uint32_t	w03,
-	uint32_t	w04,
-	uint32_t	w05,
-	uint32_t	w06,
-	uint32_t	w07,
-	uint32_t	w08,
-	uint32_t	w09,
-	uint32_t	w10,
-	uint32_t	w11,
-	uint32_t	w12,
-	uint32_t	w13,
-	uint32_t	w14,
-	uint32_t	w15,
-	uint32_t	w16
-) {
+WASM_EXPORT void hg_write(char* pos, size_t size,
+	uint32_t w01,
+	uint32_t w02,
+	uint32_t w03,
+	uint32_t w04,
+	uint32_t w05,
+	uint32_t w06,
+	uint32_t w07,
+	uint32_t w08,
+	uint32_t w09,
+	uint32_t w10,
+	uint32_t w11,
+	uint32_t w12,
+	uint32_t w13,
+	uint32_t w14,
+	uint32_t w15,
+	uint32_t w16) {
 	if (size > 16 * 4) {
-		printf("hg_write cannot write more than %d bytes at a time called with %d bytes", 16*4, size);
-		fflush(stdout);
+		DBG_LOG("hg_write cannot write more than %d bytes at a time called with %d bytes", 16 * 4, size);
 		return;
 	}
-	// printf("in hg_write(%d, %d)\n", pos, size);
-	fflush(stdout);
 	uint32_t localBuf[] = {
 		w01,
 		w02,
@@ -263,13 +276,12 @@ WASM_EXPORT void hg_write(char * pos, size_t size,
 		w13,
 		w14,
 		w15,
-		w16
-	};
+		w16 };
 
 	memcpy(pos, &localBuf, size * 4);
 }
 
-WASM_EXPORT void hg_dump(char * buffer) {
+WASM_EXPORT void hg_dump(char* buffer) {
 	printf("\"%s\"\n", buffer);
 	fflush(stdout);
 }

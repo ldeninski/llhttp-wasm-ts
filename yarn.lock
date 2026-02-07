@@ -416,10 +416,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@txikijs/types@npm:^24.12.0":
-  version: 24.12.0
-  resolution: "@txikijs/types@npm:24.12.0"
-  checksum: 10c0/cf0642cf0215b3283876e49934add3725ca277008624f3f133b930d453c68aea7d102f3b1183c3283388bed3d1c9dd9169af39eed3cd55797babe953c4cd5bf7
+"@txikijs/types@npm:^26.2.0":
+  version: 26.2.0
+  resolution: "@txikijs/types@npm:26.2.0"
+  checksum: 10c0/e775e426e2ae49668469314292d3a86854a85b2f11680584a6135ccba3b1b78aa9800faed14a73cc3496e62f3959fe82e59864c2acf8c047b8bfe7d9c94e4a9e
   languageName: node
   linkType: hard
 
@@ -820,7 +820,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "llhttp-wasm-ts@workspace:."
   dependencies:
-    "@txikijs/types": "npm:^24.12.0"
+    "@txikijs/types": "npm:^26.2.0"
     "@types/node": "npm:^25.2.0"
     esbuild: "npm:^0.27.3"
     prettier: "npm:^3.8.1"
